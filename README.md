@@ -46,6 +46,32 @@ docker compose up -d --wait
 
 这两条命令会下载镜像、自动迁移数据库并启动 HTTPS。
 
+### 服务器已有网站或 80/443 端口被占用
+
+如果看到 `Bind for 0.0.0.0:80 failed: port is already allocated`，说明现有服务已经占用了端口。数据库和应用可以继续使用，通过现有的 Nginx、宝塔或其他反向代理提供 HTTPS 即可。
+
+在 `deploy` 目录启用现有反向代理模式：
+
+```bash
+git pull --ff-only
+cp compose.proxy.yaml compose.override.yaml
+docker compose rm -sf caddy
+docker compose up -d --wait
+```
+
+此配置默认只启动数据库和应用，并将应用端口绑定到服务器本机 `127.0.0.1:3210`。只会移除 LeafDocs 自带的 Caddy 容器，数据库和图片卷保留。`compose.override.yaml` 会被后续 Compose 命令自动加载，并已加入 Git 忽略列表；如已经有自己的 override 文件，请合并配置，不要直接覆盖。
+
+在现有反向代理中为 `.env` 的 `DOMAIN` 创建站点、配置 HTTPS 证书，并将目标设为 `http://127.0.0.1:3210`。关闭代理响应缓冲，请求体大小限制至少 25 MB。若 3210 也被占用，在 `.env` 增加 `LEAFDOCS_PORT=3211`，重新执行 `docker compose up -d --wait`，反代目标相应改为 `http://127.0.0.1:3211`。
+
+如果反向代理本身运行在 Docker 容器里，`127.0.0.1` 指向代理容器自身，不能作为目标。请将代理容器加入 `leafdocs_default` 网络，并使用 `http://app:3210`；将这一外部网络连接写进代理自己的 Compose 配置，保证重建后仍能连接。
+
+不确定哪个服务占用了端口时，先查看：
+
+```bash
+sudo ss -ltnp '( sport = :80 or sport = :443 )'
+docker ps --format 'table {{.Names}}\t{{.Ports}}'
+```
+
 ### 设置管理员账号和密码（首次部署必做）
 
 **没有默认管理员账号或默认密码。** `deploy/.env` 中的 `ADMIN_EMAIL` 就是登录账号，`ADMIN_PASSWORD` 就是你选择的登录密码；必须在首次启动前填写，密码至少 12 字节，建议使用上面生成的随机密码。例如：
@@ -86,7 +112,7 @@ docker compose exec -T db pg_dump -U leafdocs -d leafdocs -Fc > backups/database
 docker compose exec -T app tar -czf - -C /app/.data uploads > backups/uploads.tar.gz
 ```
 
-将备份另存到服务器以外的位置。若服务器已有 Nginx、宝塔或 1Panel 管理 80/443，请先调整反向代理方案，避免与此配置中的 Caddy 冲突。
+将备份另存到服务器以外的位置。服务器已有网站时，使用上面的现有反向代理模式。
 
 ## 自动发布 Docker Hub 镜像
 

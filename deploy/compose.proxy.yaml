@@ -1,0 +1,8 @@
+# Copy to compose.override.yaml to use an existing HTTPS reverse proxy.
+# Compose loads compose.override.yaml automatically on subsequent commands.
+services:
+  app:
+    ports:
+      - "127.0.0.1:${LEAFDOCS_PORT:-3210}:3210"
+  caddy:
+    profiles: [bundled-proxy]
