@@ -32,10 +32,28 @@ ADMIN_PASSWORD=填入生成的管理员密码
 ```bash
 docker compose pull
 docker compose up -d --wait
+```
+
+这两条命令会下载镜像、自动迁移数据库并启动 HTTPS。
+
+### 设置管理员账号和密码（首次部署必做）
+
+**没有默认管理员账号或默认密码。** `deploy/.env` 中的 `ADMIN_EMAIL` 就是登录账号，`ADMIN_PASSWORD` 就是你选择的登录密码；必须在首次启动前填写，密码至少 12 字节，建议使用上面生成的随机密码。例如：
+
+```dotenv
+ADMIN_EMAIL=admin@your-domain.com
+ADMIN_PASSWORD='替换为你自己生成的强密码'
+```
+
+容器启动成功后，在 `deploy` 目录执行初始化，账号才会真正写入数据库：
+
+```bash
 docker compose exec app npm run db:seed
 ```
 
-前两条命令会下载镜像、自动迁移数据库并启动 HTTPS；`db:seed` 只在首次安装时执行，创建管理员和示例文档。打开 `https://你的域名` 阅读文档，访问 `/admin` 登录工作台。生产登录依赖 HTTPS，请使用域名访问。
+看到“已创建管理员账号”后，访问 `https://你的域名/admin`，使用 `.env` 中填写的邮箱和密码登录。此命令同时创建示例文档，只在首次安装时执行。若首次创建账号前又修改了 `.env`，先执行 `docker compose up -d --wait`，让容器加载新配置，再执行初始化。
+
+打开 `https://你的域名` 阅读文档。生产登录依赖 HTTPS，请使用域名访问。
 
 数据库、图片和证书保存在 Docker 命名卷中，更新和普通重启会保留。修改 `.env` 中的管理员密码不会重置已有账号。此方式安装的是全新站点，本机已有文档与图片需要另行迁移。
 
