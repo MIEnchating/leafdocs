@@ -4,7 +4,7 @@ import path from "node:path";
 import { HttpError, readBytes } from "./http";
 
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-const uploadDirectory = path.resolve(process.cwd(), ".data/uploads");
+export const uploadDirectory = path.resolve(process.cwd(), ".data/uploads");
 const mimeTypes: Record<string, string> = { png: "image/png", jpg: "image/jpeg", gif: "image/gif", webp: "image/webp" };
 
 export function imageType(bytes: Uint8Array): keyof typeof mimeTypes | null {

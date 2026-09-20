@@ -16,6 +16,9 @@ import { useSiteSettings } from "@/components/site-provider";
 import { SiteSettingsDialog } from "./site-settings-dialog";
 import { descendantIds, indexDocumentTree } from "@/lib/document-tree";
 import type { DocumentDetail, DocumentSummary, RevisionSummary } from "@/lib/types";
+import type { DocumentArchive, ImportResult } from "@/lib/transfer";
+
+const TransferDialog = dynamic(() => import("./transfer-dialog"), { ssr: false });
 
 const DocumentContent = dynamic(() => import("@/components/document-content").then(module => module.DocumentContent), { loading: () => <LoadingPlaceholder compact label="正在准备预览…" /> });
 
@@ -75,6 +78,7 @@ export default function AdminWorkspace() {
   const site = useSiteSettings();
   const confirm = useConfirm();
   const [siteSettingsOpen, setSiteSettingsOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [document, setDocument] = useState<DocumentDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -376,6 +380,34 @@ export default function AdminWorkspace() {
     URL.revokeObjectURL(url);
   }
 
+  async function transfer(work: () => Promise<void>) {
+    if (actionRef.current) throw new Error("正在处理其他操作，请稍后重试。");
+    actionRef.current = true; setAction(true);
+    try { await flush(); await work(); }
+    finally { actionRef.current = false; setAction(false); }
+  }
+
+  async function importArchive(archive: DocumentArchive) {
+    await transfer(async () => {
+      const result = await api<ImportResult>("/api/documents/import", "POST", archive);
+      listRef.current = null;
+      setTransferOpen(false); setSidebarOpen(false);
+      setNotice(`已导入 ${result.count} 篇草稿${result.renamed ? `，${result.renamed} 个重名路径已调整` : ""}`);
+      startNavigation(() => router.push(`/admin/${result.firstId}`));
+    });
+  }
+
+  async function exportArchive(scope: "current" | "all", format: "json" | "markdown") {
+    await transfer(async () => {
+      const { downloadFile, downloadMarkdown } = await import("./document-transfer");
+      const current = documentRef.current;
+      if (scope === "current" && !current) throw new Error("请先打开一篇文档。");
+      if (format === "markdown") { await downloadMarkdown(current!); return; }
+      const archive = await api<DocumentArchive>(`/api/documents/export${scope === "current" ? `?id=${encodeURIComponent(current!.id)}` : ""}`);
+      downloadFile(scope === "current" ? `${current!.slug}.json` : "leafdocs-documents.json", JSON.stringify(archive), "application/json");
+    });
+  }
+
   const treeIndex = useMemo(() => indexDocumentTree(documents), [documents]);
   const childrenOf = (parentId: string | null) => treeIndex.get(parentId) ?? [];
   function tree(parentId: string | null = null, depth = 0): React.ReactNode {
@@ -411,7 +443,7 @@ export default function AdminWorkspace() {
           {!loading && !documents.length && <p className="tree-empty">从第一篇文档开始。</p>}
           <button className="admin-new-document" disabled={action} onClick={() => void createDocument()}><Plus size={16} /> 新建文档</button>
         </nav>
-        <div className="admin-sidebar-bottom"><button onClick={() => { setSidebarOpen(false); setSiteSettingsOpen(true); }} disabled={action}><Settings2 size={15} /> 站点设置</button><button onClick={() => navigate("/")} disabled={action}><ArrowUpRight size={15} /> 访问文档站</button><button onClick={() => void run(async () => { await api("/api/auth/logout", "POST"); router.push("/login"); router.refresh(); })} disabled={action}><LogOut size={14} /> 退出登录</button></div>
+        <div className="admin-sidebar-bottom"><button onClick={() => { setSidebarOpen(false); setTransferOpen(true); }} disabled={action || loading}><FileText size={15} /> 导入与导出</button><button onClick={() => { setSidebarOpen(false); setSiteSettingsOpen(true); }} disabled={action}><Settings2 size={15} /> 站点设置</button><button onClick={() => navigate("/")} disabled={action}><ArrowUpRight size={15} /> 访问文档站</button><button onClick={() => void run(async () => { await api("/api/auth/logout", "POST"); router.push("/login"); router.refresh(); })} disabled={action}><LogOut size={14} /> 退出登录</button></div>
       </>;
 
   return (
@@ -431,6 +463,7 @@ export default function AdminWorkspace() {
               items={[
                 { id: "settings", label: "页面设置", icon: <Settings2 size={16} />, onSelect: () => setSettingsOpen(value => !value) },
                 { id: "history", label: "历史版本", icon: <History size={16} />, onSelect: () => void openHistory() },
+                { id: "transfer", label: "导入与导出", icon: <FileText size={16} />, onSelect: () => setTransferOpen(true) },
                 { id: "create", label: "新建子文档", icon: <Plus size={16} />, onSelect: () => void createDocument(document!.id) },
                 ...(document?.publishedAt ? [{ id: "unpublish", label: "撤下发布", icon: <Undo2 size={16} />, onSelect: () => void unpublish() }] : []),
                 { id: "delete", label: "删除文档", icon: <Trash2 size={16} />, danger: true, onSelect: () => void removeDocument() },
@@ -457,6 +490,7 @@ export default function AdminWorkspace() {
 
       {notice && <div className="admin-toast" role="status"><Check size={16} />{notice}</div>}
       <SiteSettingsDialog open={siteSettingsOpen} onClose={() => setSiteSettingsOpen(false)} />
+      {transferOpen && <TransferDialog currentTitle={document?.title} onClose={() => setTransferOpen(false)} onImport={importArchive} onExport={exportArchive} />}
       <SurfaceDialog open={previewOpen} onClose={() => setPreviewOpen(false)} label="草稿预览" className="preview-dialog">{previewOpen && preview && <section className="admin-preview-modal"><header><div><Eye size={17} /><strong>草稿预览</strong><span>仅你可见</span></div><button className="admin-icon-button" aria-label="关闭预览" onClick={() => setPreviewOpen(false)} autoFocus><X size={21} /></button></header><div className="preview-scroll"><article className="preview-article"><span className="admin-eyebrow">{site.title}</span><h1><DocumentIcon icon={preview.icon} size={30} /><span>{preview.title}</span></h1><DocumentContent content={preview.content} /></article></div></section>}</SurfaceDialog>
       <SurfaceDialog open={historyOpen} onClose={() => setHistoryOpen(false)} label="历史版本" className="history-dialog"><section className="admin-history-panel"><header><div><History size={19} /><h2>历史版本</h2></div><button className="admin-icon-button" aria-label="关闭历史版本" onClick={() => setHistoryOpen(false)} autoFocus><X size={20} /></button></header><p>恢复历史内容到草稿，确认后再发布。</p>{historyLoading ? <div className="editor-loading"><LoaderCircle className="admin-spin" size={18} /> 加载中…</div> : revisions.length ? <ol className="admin-revisions">{revisions.map(revision => <li key={revision.id}><span className="revision-dot" /><div><strong>{revision.title}</strong><span>{friendlyDate(revision.createdAt)}</span><small>版本 {revision.version}</small></div><button className="admin-button" onClick={() => void restore(revision)} disabled={action}><Undo2 size={13} /> 恢复</button></li>)}</ol> : <div className="history-empty"><History size={28} /><p>暂时没有历史版本</p><span>保存或发布后，可以在这里查看。</span></div>}</section></SurfaceDialog>
     </div>
