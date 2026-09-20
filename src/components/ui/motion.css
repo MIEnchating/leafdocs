@@ -1,0 +1,45 @@
+/* Shared interaction timing; no geometry transitions on scrolling or editing surfaces. */
+:root { --motion-colors: background-color var(--duration-ui) var(--ease-ui), color var(--duration-ui) var(--ease-ui), border-color var(--duration-ui) var(--ease-ui); }
+.sidebar-link:has([data-navigation-pending="true"]) { background:var(--paper); color:var(--foreground); }
+.navigation-spinner { animation:navigation-spin .8s linear infinite; }
+@keyframes navigation-spin { to { transform:rotate(360deg); } }
+:is(.sidebar-link,.header-nav a,.search-trigger,.theme-trigger,.theme-option,.code-option,.icon-button,.header-manage,.button,.article-pagination > a,.library-document,.ui-menu-item,.ui-button,.ui-select-trigger,.ui-icon-picker-trigger,.ui-icon-choice),
+.admin-workspace :is(.admin-button,.admin-icon-button,.admin-tree-row,.tree-add,.editor-submeta button,.admin-sidebar-bottom button),
+.admin-login button {
+  transition: var(--motion-colors), opacity var(--duration-ui) var(--ease-ui), transform var(--duration-ui) var(--ease-ui), box-shadow var(--duration-ui) var(--ease-ui);
+}
+:is(.button,.icon-button,.theme-trigger,.header-manage,.ui-button,.ui-icon-picker-trigger,.ui-icon-choice):active:not(:disabled),
+.admin-workspace :is(.admin-button,.admin-icon-button):active:not(:disabled) { transform:scale(.97); }
+@media(hover:hover) and (pointer:fine) {
+  .library-document:hover { transform:translateY(-3px); box-shadow:0 6px 18px rgb(0 0 0 / .08); }
+  .library-document > svg { transition:transform var(--duration-ui) var(--ease-ui); }
+  .library-document:hover > svg { transform:translate(3px,-3px); }
+  .sidebar-link .nav-doc-icon,.theme-trigger > svg,.admin-tree-row .tree-document > svg { transition:transform var(--duration-panel) var(--ease-spatial); }
+  .sidebar-link:hover .nav-doc-icon,.admin-tree-row:hover .tree-document > svg { transform:translateX(3px); }
+  .theme-trigger:hover > svg { transform:rotate(16deg); }
+}
+:is(body,.site-header,.public-sidebar,.dialog-core,.surface-dialog,.admin-workspace,.admin-sidebar,.admin-main,.admin-toolbar,.editor-settings,.code-block) {
+  transition-property:background-color,color,border-color;
+  transition-duration:var(--duration-panel);
+  transition-timing-function:var(--ease-ui);
+}
+/* Dialog geometry and top-layer transitions stay owned by SurfaceDialog. */
+.surface-dialog { transition:opacity var(--duration-panel) var(--ease-ui), transform var(--duration-panel) var(--ease-spatial), background-color var(--duration-panel) var(--ease-ui), display var(--duration-panel) allow-discrete, overlay var(--duration-panel) allow-discrete; }
+.surface-dialog[data-instant] { transition:none; }
+.ui-menu { transform-origin:var(--radix-dropdown-menu-content-transform-origin, var(--radix-select-content-transform-origin,top)); }
+.ui-popover { transform-origin:var(--radix-popover-content-transform-origin); }
+.ui-menu,.ui-popover { --menu-offset:-8px; }
+:is(.ui-menu,.ui-popover)[data-side="top"] { --menu-offset:8px; }
+:is(.ui-menu,.ui-popover)[data-state="open"] { animation:ui-surface-in var(--duration-panel) var(--ease-ui) both; }
+:is(.ui-menu,.ui-popover)[data-state="closed"] { animation:ui-surface-out 120ms var(--ease-ui) both; pointer-events:none; }
+.ui-select-trigger > span:last-child > svg { transition:transform var(--duration-ui) var(--ease-ui); }
+.ui-select-trigger[data-state="open"] > span:last-child > svg { transform:rotate(180deg); }
+.ui-collapse { display:grid; grid-template-rows:0fr; opacity:0; visibility:hidden; transition:grid-template-rows var(--duration-panel) var(--ease-spatial), opacity var(--duration-ui) var(--ease-ui), visibility var(--duration-panel); }
+.ui-collapse[data-open="true"] { grid-template-rows:1fr; opacity:1; visibility:visible; }
+.ui-collapse-content { min-height:0; overflow:hidden; }
+@keyframes ui-surface-in { from { opacity:0; transform:translateY(var(--menu-offset)) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes ui-surface-out { from { opacity:1; transform:translateY(0) scale(1); } to { opacity:0; transform:translateY(var(--menu-offset)) scale(.98); } }
+@media(prefers-reduced-motion:reduce) {
+  .library-document:hover,.article-pagination a:hover svg,.library-document:hover > svg,
+  .sidebar-link:hover .nav-doc-icon,.admin-tree-row:hover .tree-document > svg,.theme-trigger:hover > svg { transform:none; }
+}

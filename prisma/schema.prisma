@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+}
+
+model SiteSettings {
+  id          String @id @default("default")
+  title       String @default("文档中心")
+  icon        String @default("book")
+  description String @default("使用指南、操作说明与常见问题。")
+  version     Int @default(1)
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model LoginAttempt {
+  key          String    @id
+  count        Int       @default(0)
+  windowStart  DateTime   @default(now())
+  blockedUntil DateTime?
+}
+
+model Document {
+  id               String     @id @default(cuid())
+  title            String     @default("未命名文档")
+  slug             String     @unique
+  icon             String     @default("📄")
+  content          Json       @default("[]")
+  parentId         String?
+  parent           Document?  @relation("DocumentTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children         Document[] @relation("DocumentTree")
+  position         Int        @default(0)
+  version          Int        @default(1)
+  publishedVersion Int?
+  publishedAt      DateTime?
+  publishedTitle   String?
+  publishedSlug    String?    @unique
+  publishedIcon    String?
+  publishedContent Json?
+  publishedText    String     @default("")
+  publishedParentId String?
+  publishedPosition Int?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  revisions        Revision[]
+
+  @@index([parentId, position])
+  @@index([publishedAt])
+}
+
+model Revision {
+  id         String   @id @default(cuid())
+  documentId String
+  title      String
+  slug       String
+  icon       String
+  content    Json
+  version    Int
+  createdAt  DateTime @default(now())
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, version])
+  @@index([documentId, createdAt])
+}

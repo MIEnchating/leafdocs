@@ -1,0 +1,185 @@
+/* Keep the toolbar neutral; content colors come from the selected Shiki theme. */
+.code-block-modern {
+  --code-background: #fff;
+  --code-border: rgb(29 40 50 / .05);
+  --code-toolbar: #fff;
+  --code-toolbar-border: rgb(29 40 50 / .04);
+  --code-label: #787774;
+  --code-copy-border: transparent;
+  --code-copy-color: #555;
+  --code-hover: #f7f6f3;
+  --code-hover-text: #111;
+  --code-selection: #e1f3fe;
+  --code-gutter: #787774;
+  --scroll-thumb: #c4c4c1;
+  --scroll-thumb-hover: #91918e;
+}
+html[data-code-theme="forest"] .code-block-modern {
+  --code-background: #0d1117;
+  --code-hover: #20242b;
+  --code-selection: #344454;
+  --code-gutter: #9199a3;
+}
+html[data-code-theme="midnight"] .code-block-modern {
+  --code-background: #1f1f1f;
+  --code-hover: #303030;
+  --code-selection: #444;
+  --code-gutter: #aaa;
+}
+.document-content .code-block-modern {
+  margin: 24px 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 22px;
+  padding: 6px;
+  background: var(--shell);
+  box-shadow: none;
+}
+
+.code-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 13px;
+  border-bottom: 1px solid var(--code-toolbar-border);
+  background: var(--code-toolbar);
+  color: var(--code-label);
+}
+
+.code-dots {
+  display: flex;
+  gap: 5px;
+  margin-right: 2px;
+}
+
+.code-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d4d4d1;
+}
+
+
+
+
+
+.code-language {
+  color: var(--code-label);
+  font: 11px/1 var(--font-mono);
+  letter-spacing: .25px;
+}
+
+.code-copy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 5px 8px;
+  border: 1px solid var(--code-copy-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--code-copy-color);
+  font-size: 10px;
+  transition: transform var(--duration-ui) var(--ease-ui);
+}
+
+.code-copy:hover {
+  background: #f7f6f3;
+  color: #111;
+}
+
+.code-scroll-area {
+  max-width: 100%;
+  background: var(--code-background);
+  --rs-line-numbers-width: 2ch;
+  --rs-line-numbers-padding-left: 16px;
+  --rs-line-numbers-padding-right: 14px;
+  --rs-line-numbers-foreground: var(--code-gutter);
+}
+
+.code-scroll-area:focus-visible,
+.code-scroll-area .code-highlight:focus-visible,
+.code-scroll-area pre:focus-visible {
+  outline: 2px solid var(--scroll-thumb-hover);
+  outline-offset: -2px;
+}
+
+.code-scroll-area .code-highlight {
+  width: max-content;
+  min-width: 100%;
+}
+
+/* Only ScrollArea scrolls; the highlighted markup expands to its full size. */
+.document-content .code-scroll-area pre {
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 15px 18px 15px 0;
+  overflow: visible !important;
+  border-radius: 0;
+  font: 12px/1.85 var(--font-mono);
+  white-space: pre;
+  overflow-wrap: normal;
+  tab-size: 2;
+}
+
+.document-content .code-scroll-area pre code {
+  display: block;
+  min-width: max-content;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+/* Shiki supplies real newlines and its own line-number pseudo-elements. */
+.code-scroll-area .line {
+  display: inline;
+}
+
+.code-scroll-area .line:hover {
+  background: var(--code-hover);
+}
+
+.code-scroll-area ::selection {
+  background: var(--code-selection);
+}
+
+@media (max-width: 640px) {
+  .document-content .code-block-modern {
+    margin-left: -4px;
+    margin-right: -4px;
+    border-radius: 22px;
+  }
+
+  .code-toolbar { height: 38px; }
+
+  .document-content .code-scroll-area pre {
+    padding-right: 12px;
+    font-size: 11px;
+  }
+
+  .code-scroll-area {
+    --rs-line-numbers-padding-left: 12px;
+    --rs-line-numbers-padding-right: 10px;
+  }
+}
+
+.code-core { overflow: hidden; border-radius: 16px; background: var(--code-background); }
+.code-copy:active { transform: scale(.96); }
+
+/* The toolbar follows the code palette, including when chosen independently. */
+html:is([data-code-theme="forest"], [data-code-theme="midnight"]) .code-block-modern {
+  --code-toolbar: var(--code-background);
+  --code-toolbar-border: rgb(220 230 245 / .14);
+  --code-label: #bcc6d2;
+  --code-copy-color: #d5dce5;
+  --code-hover-text: #fff;
+  --scroll-thumb: #657080;
+  --scroll-thumb-hover: #8f9cac;
+}
+.code-copy:hover { background: var(--code-hover); color: var(--code-hover-text); }
+.code-dots i { background: var(--code-gutter); opacity: .55; }
+.code-plain { counter-reset:code-line; color:var(--code-copy-color); }
+.plain-line::before { counter-increment:code-line; content:counter(code-line); display:inline-block; width:calc(var(--rs-line-numbers-width) + var(--rs-line-numbers-padding-left) + var(--rs-line-numbers-padding-right)); padding-left:var(--rs-line-numbers-padding-left); padding-right:var(--rs-line-numbers-padding-right); text-align:right; color:var(--code-gutter); user-select:none; }
