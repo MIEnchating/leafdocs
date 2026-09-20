@@ -2,6 +2,74 @@
 
 独立的文档服务，提供公开阅读页与登录后的在线块编辑工作台。站点名称、图标和简介可在后台的「站点设置」中修改，无需绑定其他产品。
 
+## 部署到自己的服务器
+
+提供 Docker Compose 配置，包含应用、PostgreSQL 和自动申请/续期 HTTPS 证书的 Caddy。应用直接拉取 Docker Hub 镜像 `mienvirtuoso/leafdocs:latest`，支持 amd64 / arm64，无需在服务器上构建。准备一台安装了 Git、Docker Engine 和 Compose 插件的 Linux 服务器，建议至少 2 GB 内存。安装 Docker 可参考 [官方文档](https://docs.docker.com/engine/install/)。
+
+先把域名（例如 `docs.example.com`）的 A 记录指向服务器公网 IP；若配置了 AAAA 记录，也必须指向可用的 IPv6 地址。放行服务器防火墙和云安全组的 TCP 80、443 端口，并确保没有其他服务占用这两个端口。使用直连 DNS 完成首次部署。
+
+```bash
+git clone https://github.com/MIEnchating/leafdocs.git
+cd leafdocs/deploy
+cp .env.example .env
+chmod 600 .env
+openssl rand -hex 32   # 生成数据库密码
+openssl rand -hex 24   # 生成管理员密码
+nano .env
+```
+
+在 `.env` 中填写域名、生成的两个不同密码和管理员邮箱：
+
+```dotenv
+DOMAIN=docs.example.com
+POSTGRES_PASSWORD=填入生成的数据库密码
+ADMIN_EMAIL=你的邮箱
+ADMIN_PASSWORD=填入生成的管理员密码
+```
+
+`DOMAIN` 只填域名，不含协议或路径。数据库密码使用生成的十六进制字符串，避免连接 URL 中的特殊字符。然后在 `deploy` 目录执行：
+
+```bash
+docker compose pull
+docker compose up -d --wait
+docker compose exec app npm run db:seed
+```
+
+前两条命令会下载镜像、自动迁移数据库并启动 HTTPS；`db:seed` 只在首次安装时执行，创建管理员和示例文档。打开 `https://你的域名` 阅读文档，访问 `/admin` 登录工作台。生产登录依赖 HTTPS，请使用域名访问。
+
+数据库、图片和证书保存在 Docker 命名卷中，更新和普通重启会保留。修改 `.env` 中的管理员密码不会重置已有账号。此方式安装的是全新站点，本机已有文档与图片需要另行迁移。
+
+日常操作（均在 `deploy` 目录执行）：
+
+```bash
+docker compose ps                 # 查看运行状态
+docker compose logs --tail=100 app caddy  # 查看应用和证书日志
+git pull --ff-only
+docker compose pull               # 下载新镜像
+docker compose up -d --wait        # 使用新镜像启动
+```
+
+更新前备份数据库和图片；不要执行 `docker compose down -v`，它会删除数据卷。备份示例：
+
+```bash
+mkdir -p backups
+chmod 700 backups
+docker compose exec -T db pg_dump -U leafdocs -d leafdocs -Fc > backups/database.dump
+docker compose exec -T app tar -czf - -C /app/.data uploads > backups/uploads.tar.gz
+```
+
+将备份另存到服务器以外的位置。若服务器已有 Nginx、宝塔或 1Panel 管理 80/443，请先调整反向代理方案，避免与此配置中的 Caddy 冲突。
+
+## 自动发布 Docker Hub 镜像
+
+GitHub Actions 工作流位于 `.github/workflows/dockerhub.yml`，只推送到 [Docker Hub：mienvirtuoso/leafdocs](https://hub.docker.com/r/mienvirtuoso/leafdocs)，不发布到 GitHub Packages / GHCR。
+
+在 Docker Hub 创建具有 **Read & Write** 权限的 Access Token，并在仓库的 **Settings → Secrets and variables → Actions** 中创建 Secret `DOCKERHUB_TOKEN`。用户名已设置为 `mienvirtuoso`。首次镜像发布成功后，服务器才能拉取镜像；确保 Docker Hub 仓库为公开，私有仓库需要先在服务器执行 `docker login`。
+
+推送到 `main` 自动发布 `latest` 和 `sha-完整提交号` 标签；推送 `v1.2.3` 这样的版本标签会发布 `1.2.3` 和提交号标签。也可在 Actions 页面手动运行 **Publish Docker Hub image**。镜像包含 `linux/amd64` 和 `linux/arm64` 两种架构。
+
+如需固定版本，在 `deploy/.env` 中设置 `LEAFDOCS_IMAGE=mienvirtuoso/leafdocs:1.2.3`，再执行 `docker compose pull && docker compose up -d --wait`。
+
 ## 一键部署到 Render
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FMIEnchating%2Fleafdocs)
