@@ -4,16 +4,16 @@
 
 ## 一键部署到 Render
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://dashboard.render.com/select-repo?type=blueprint)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FMIEnchating%2Fleafdocs)
 
 仓库内的 `render.yaml` 会一起创建 Node.js 服务、PostgreSQL 数据库和用于保存上传图片的持久化磁盘。使用付费 Web / 数据库实例和磁盘，具体费用以 Render 创建页面为准。
 
-1. 将项目推送到自己的 GitHub 仓库。
-2. 打开 [Render Blueprint](https://dashboard.render.com/select-repo?type=blueprint)，授权并选择该仓库。私有仓库也可通过此入口部署。
+1. 点击上面的 **Deploy to Render** 按钮，登录 Render 并授权 GitHub。
+2. 确认使用 [MIEnchating/leafdocs](https://github.com/MIEnchating/leafdocs) 仓库的部署模板；如需维护自己的版本，可先 Fork，再通过 [Render Blueprint](https://dashboard.render.com/select-repo?type=blueprint) 选择自己的仓库。私有仓库也可通过此入口部署。
 3. 填写 `ADMIN_EMAIL` 和 `ADMIN_PASSWORD`（至少 12 字节，建议使用至少 16 位随机密码），确认资源和费用后点击部署。
 4. 首次部署钩子完成后，打开分配的 HTTPS 地址；访问 `/admin`，使用上面的账号登录。首次部署会创建管理员与示例文档。
 
-公开仓库可使用专属一键部署链接：`https://render.com/deploy?repo=你的GitHub仓库完整URL`。
+专属一键部署链接：[部署 LeafDocs](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FMIEnchating%2Fleafdocs)。
 
 部署会自动运行数据库迁移，并使用 Render 分配的域名进行登录来源校验；后续推送到关联分支会自动重新部署。示例数据仅在首次部署时初始化，日常重启不会恢复已删除的文档。图片保存在持久化磁盘中，重新部署不会丢失。数据库与磁盘仍需分别备份。
 
