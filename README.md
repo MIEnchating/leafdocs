@@ -63,7 +63,7 @@ docker compose up -d --wait
 
 在现有反向代理中为 `.env` 的 `DOMAIN` 创建站点、配置 HTTPS 证书，并将目标设为 `http://127.0.0.1:3210`。关闭代理响应缓冲，请求体大小限制至少 25 MB。若 3210 也被占用，在 `.env` 增加 `LEAFDOCS_PORT=3211`，重新执行 `docker compose up -d --wait`，反代目标相应改为 `http://127.0.0.1:3211`。
 
-如果反向代理本身运行在 Docker 容器里，`127.0.0.1` 指向代理容器自身，不能作为目标。请将代理容器加入 `leafdocs_default` 网络，并使用 `http://app:3210`；将这一外部网络连接写进代理自己的 Compose 配置，保证重建后仍能连接。
+如果反向代理本身运行在 Docker 容器里，`127.0.0.1` 指向代理容器自身，不能作为目标。请将代理容器加入 `leafdocs_default` 网络，并使用 `http://leafdocs-backend:3210`；将这一外部网络连接写进代理自己的 Compose 配置，保证重建后仍能连接。
 
 不确定哪个服务占用了端口时，先查看：
 

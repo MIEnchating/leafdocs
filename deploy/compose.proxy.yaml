@@ -4,5 +4,8 @@ services:
   app:
     ports:
       - "127.0.0.1:${LEAFDOCS_PORT:-3210}:3210"
+    networks:
+      default:
+        aliases: [leafdocs-backend]
   caddy:
     profiles: [bundled-proxy]
