@@ -12,107 +12,82 @@
 
 使用已有反向代理时，请将请求体大小限制设为至少 25 MB，以便导入包含图片的 JSON 文件。
 
-## 部署到自己的服务器
+## Docker 部署（无需克隆项目）
 
-提供 Docker Compose 配置，包含应用、PostgreSQL 和自动申请/续期 HTTPS 证书的 Caddy。应用直接拉取 Docker Hub 镜像 `mienvirtuoso/leafdocs:latest`，支持 amd64 / arm64，无需在服务器上构建。准备一台安装了 Git、Docker Engine 和 Compose 插件的 Linux 服务器，建议至少 2 GB 内存。安装 Docker 可参考 [官方文档](https://docs.docker.com/engine/install/)。
+服务器只需 Docker Engine、Compose 插件、Bash、curl 和 openssl，不需要 Node.js、Git 或项目源码。使用已有 Nginx 提供 HTTPS；安装脚本只启动应用与 PostgreSQL，不占用 80/443。
 
-先把域名（例如 `docs.example.com`）的 A 记录指向服务器公网 IP；若配置了 AAAA 记录，也必须指向可用的 IPv6 地址。放行服务器防火墙和云安全组的 TCP 80、443 端口，并确保没有其他服务占用这两个端口。使用直连 DNS 完成首次部署。
-
-```bash
-git clone https://github.com/MIEnchating/leafdocs.git
-cd leafdocs/deploy
-cp .env.example .env
-chmod 600 .env
-openssl rand -hex 32   # 生成数据库密码
-openssl rand -hex 24   # 生成管理员密码
-nano .env
-```
-
-在 `.env` 中填写域名、生成的两个不同密码和管理员邮箱：
-
-```dotenv
-DOMAIN=docs.example.com
-POSTGRES_PASSWORD=填入生成的数据库密码
-ADMIN_EMAIL=你的邮箱
-ADMIN_PASSWORD=填入生成的管理员密码
-```
-
-`DOMAIN` 只填域名，不含协议或路径。数据库密码使用生成的十六进制字符串，避免连接 URL 中的特殊字符。然后在 `deploy` 目录执行：
+下载并运行部署脚本：
 
 ```bash
-docker compose pull
-docker compose up -d --wait
+curl -fsSL https://raw.githubusercontent.com/MIEnchating/leafdocs/main/deploy.sh -o leafdocs-deploy.sh
+bash leafdocs-deploy.sh --network newapi_default
 ```
 
-这两条命令会下载镜像、自动迁移数据库并启动 HTTPS。
+`newapi_default` 替换成 **Nginx 容器实际连接的已有网络**；脚本不会创建这个外部网络。Nginx 运行在宿主机时，使用 `--network -`。首次安装会询问域名、管理员邮箱和密码（至少 12 字节），数据库密码自动生成。
 
-### 服务器已有网站或 80/443 端口被占用
+默认部署目录是 `~/leafdocs`，仅保存脚本、Compose 配置、`.env` 和网络选择记录；可用 `--dir /你的目录` 指定其他目录。脚本不下载项目源码，也不自动安装或修改系统服务。
 
-如果看到 `Bind for 0.0.0.0:80 failed: port is already allocated`，说明现有服务已经占用了端口。数据库和应用可以继续使用，通过现有的 Nginx、宝塔或其他反向代理提供 HTTPS 即可。
+**首次启动自动创建管理员，无需执行 `db:seed`。** 首次凭据缺失或格式无效时，应用会明确报错而不会以无法登录的状态启动。已有管理员时会保留原账号密码，修改 `.env` 不会重置密码或新增账号。默认文档库为空，可在后台新建或导入内容。
 
-在 `deploy` 目录启用现有反向代理模式：
+### 配置现有 Nginx
+
+域名 DNS 指向服务器，为与 `.env` 中 `DOMAIN` 一致的域名配置 HTTPS 证书。Nginx 容器与应用共享指定网络后，反代目标为 `http://leafdocs-backend:3210`：
+
+```nginx
+client_max_body_size 25m;
+location / {
+    proxy_pass http://leafdocs-backend:3210;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+}
+```
+
+Nginx 在宿主机运行时，目标改为 `http://127.0.0.1:3210`。本机 3210 端口已占用时，在 `.env` 添加 `LEAFDOCS_PORT=3211` 并重新运行脚本，宿主机反代目标也改为 3211；容器网络中的目标仍为 `leafdocs-backend:3210`。数据库只连接内部网络，不向主机发布端口。
+
+打开 `https://你的域名/admin`，使用首次配置的邮箱密码登录。生产登录依赖 HTTPS。
+
+### 已有部署迁移到脚本
+
+如果此前已经在 `~/leafdocs/deploy` 配置了 `.env`，直接指定这个目录和 Nginx 网络：
 
 ```bash
-git pull --ff-only
-cp compose.proxy.yaml compose.override.yaml
-docker compose rm -sf caddy
-docker compose up -d --wait
+bash leafdocs-deploy.sh --dir "$HOME/leafdocs/deploy" --network newapi_default
 ```
 
-此配置默认只启动数据库和应用，并将应用端口绑定到服务器本机 `127.0.0.1:3210`。只会移除 LeafDocs 自带的 Caddy 容器，数据库和图片卷保留。`compose.override.yaml` 会被后续 Compose 命令自动加载，并已加入 Git 忽略列表；如已经有自己的 override 文件，请合并配置，不要直接覆盖。
+脚本保留已有 `.env`，复用原来的 `leafdocs_database` 和 `leafdocs_uploads` 数据卷；变更前的 Compose 文件保存为 `compose.previous.yaml`。旧的 `compose.override.yaml` 不会被删除，但脚本明确指定 Compose 文件，不会合并旧 override。不要删除 `.env` 或数据卷，也无需重新导入文档。
 
-在现有反向代理中为 `.env` 的 `DOMAIN` 创建站点、配置 HTTPS 证书，并将目标设为 `http://127.0.0.1:3210`。关闭代理响应缓冲，请求体大小限制至少 25 MB。若 3210 也被占用，在 `.env` 增加 `LEAFDOCS_PORT=3211`，重新执行 `docker compose up -d --wait`，反代目标相应改为 `http://127.0.0.1:3211`。
+若旧的 LeafDocs Caddy 容器仍在运行，可执行 `docker stop leafdocs-caddy-1` 停止它；无需停止其他服务的 Nginx，也不需要删除数据库或图片卷。
 
-如果反向代理本身运行在 Docker 容器里，`127.0.0.1` 指向代理容器自身，不能作为目标。请将代理容器加入 `leafdocs_default` 网络，并使用 `http://leafdocs-backend:3210`；将这一外部网络连接写进代理自己的 Compose 配置，保证重建后仍能连接。
+### 更新、日志与备份
 
-不确定哪个服务占用了端口时，先查看：
+后续直接运行部署目录中的脚本，无需 Git：
 
 ```bash
-sudo ss -ltnp '( sport = :80 or sport = :443 )'
-docker ps --format 'table {{.Names}}\t{{.Ports}}'
+bash ~/leafdocs/deploy.sh update
+bash ~/leafdocs/deploy.sh status
+bash ~/leafdocs/deploy.sh logs
 ```
 
-### 设置管理员账号和密码（首次部署必做）
-
-**没有默认管理员账号或默认密码。** `deploy/.env` 中的 `ADMIN_EMAIL` 就是登录账号，`ADMIN_PASSWORD` 就是你选择的登录密码；必须在首次启动前填写，密码至少 12 字节，建议使用上面生成的随机密码。例如：
-
-```dotenv
-ADMIN_EMAIL=admin@your-domain.com
-ADMIN_PASSWORD='替换为你自己生成的强密码'
-```
-
-容器启动成功后，在 `deploy` 目录执行初始化，账号才会真正写入数据库：
+使用自定义目录或从旧版迁移时，每次带上同一个 `--dir`，例如：
 
 ```bash
-docker compose exec app npm run db:seed
+bash ~/leafdocs/deploy/deploy.sh update --dir "$HOME/leafdocs/deploy"
 ```
 
-看到“已创建管理员账号”后，访问 `https://你的域名/admin`，使用 `.env` 中填写的邮箱和密码登录。此命令同时创建示例文档，只在首次安装时执行。若首次创建账号前又修改了 `.env`，先执行 `docker compose up -d --wait`，让容器加载新配置，再执行初始化。
-
-打开 `https://你的域名` 阅读文档。生产登录依赖 HTTPS，请使用域名访问。
-
-数据库、图片和证书保存在 Docker 命名卷中，更新和普通重启会保留。修改 `.env` 中的管理员密码不会重置已有账号。此方式安装的是全新站点，本机已有文档与图片需要另行迁移。
-
-日常操作（均在 `deploy` 目录执行）：
-
-```bash
-docker compose ps                 # 查看运行状态
-docker compose logs --tail=100 app caddy  # 查看应用和证书日志
-git pull --ff-only
-docker compose pull               # 下载新镜像
-docker compose up -d --wait        # 使用新镜像启动
-```
-
-更新前备份数据库和图片；不要执行 `docker compose down -v`，它会删除数据卷。备份示例：
+更新镜像保留账号、文档和图片。需要更新脚本本身时，重新下载并使用相同的 `--dir` 和网络参数运行。升级前备份数据；在实际部署目录执行：
 
 ```bash
 mkdir -p backups
 chmod 700 backups
-docker compose exec -T db pg_dump -U leafdocs -d leafdocs -Fc > backups/database.dump
-docker compose exec -T app tar -czf - -C /app/.data uploads > backups/uploads.tar.gz
+docker compose -p leafdocs -f compose.yaml exec -T db pg_dump -U leafdocs -d leafdocs -Fc > backups/database.dump
+docker compose -p leafdocs -f compose.yaml exec -T app tar -czf - -C /app/.data uploads > backups/uploads.tar.gz
 ```
 
-将备份另存到服务器以外的位置。服务器已有网站时，使用上面的现有反向代理模式。
+把备份另存到服务器以外的位置。不要执行 `docker compose down -v`，它会删除数据卷。
 
 ## 自动发布 Docker Hub 镜像
 
@@ -122,26 +97,7 @@ GitHub Actions 工作流位于 `.github/workflows/dockerhub.yml`，只推送到 
 
 推送到 `main` 自动发布 `latest` 和 `sha-完整提交号` 标签；推送 `v1.2.3` 这样的版本标签会发布 `1.2.3` 和提交号标签。也可在 Actions 页面手动运行 **Publish Docker Hub image**。镜像包含 `linux/amd64` 和 `linux/arm64` 两种架构。
 
-如需固定版本，在 `deploy/.env` 中设置 `LEAFDOCS_IMAGE=mienvirtuoso/leafdocs:1.2.3`，再执行 `docker compose pull && docker compose up -d --wait`。
-
-## 一键部署到 Render
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FMIEnchating%2Fleafdocs)
-
-仓库内的 `render.yaml` 会一起创建 Node.js 服务、PostgreSQL 数据库和用于保存上传图片的持久化磁盘。使用付费 Web / 数据库实例和磁盘，具体费用以 Render 创建页面为准。
-
-1. 点击上面的 **Deploy to Render** 按钮，登录 Render 并授权 GitHub。
-2. 确认使用 [MIEnchating/leafdocs](https://github.com/MIEnchating/leafdocs) 仓库的部署模板；如需维护自己的版本，可先 Fork，再通过 [Render Blueprint](https://dashboard.render.com/select-repo?type=blueprint) 选择自己的仓库。私有仓库也可通过此入口部署。
-3. 填写 `ADMIN_EMAIL` 和 `ADMIN_PASSWORD`（至少 12 字节，建议使用至少 16 位随机密码），确认资源和费用后点击部署。
-4. 首次部署钩子完成后，打开分配的 HTTPS 地址；访问 `/admin`，使用上面的账号登录。首次部署会创建管理员与示例文档。
-
-专属一键部署链接：[部署 LeafDocs](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2FMIEnchating%2Fleafdocs)。
-
-部署会自动运行数据库迁移，并使用 Render 分配的域名进行登录来源校验；后续推送到关联分支会自动重新部署。示例数据仅在首次部署时初始化，日常重启不会恢复已删除的文档。图片保存在持久化磁盘中，重新部署不会丢失。数据库与磁盘仍需分别备份。
-
-绑定自定义域名后，在 Render 环境变量中设置 `APP_URL=https://你的域名` 并重新部署；登录和编辑请统一使用该域名。初始化失败时，在服务 Shell 中运行 `npm run db:seed` 并检查日志；此命令保留已有管理员密码。修改环境变量中的 `ADMIN_PASSWORD` 不会重置已有密码。
-
-此部署创建全新站点；本机 `.data`、已编辑的数据库内容和 `.env` 不会随 Git 推送上传。现有文档需要单独迁移数据库和上传目录。由于站点包含后台、数据库与本地图片存储，不能直接作为 GitHub Pages 静态站点部署；迁移到 Vercel 等无持久化文件系统的平台前，需要先接入外部对象存储。
+如需固定版本，在部署目录的 `.env` 中设置 `LEAFDOCS_IMAGE=mienvirtuoso/leafdocs:1.2.3`，再运行部署脚本的 `update` 命令。
 
 ## 本机开发
 

@@ -2,8 +2,6 @@
 set -eu
 
 export NODE_ENV=production
-# Render supplies the public HTTPS origin. APP_URL overrides it for custom domains.
-export APP_URL="${APP_URL:-${RENDER_EXTERNAL_URL:-}}"
 : "${DATABASE_URL:?Set DATABASE_URL before starting production}"
 : "${APP_URL:?Set APP_URL to the public HTTPS origin}"
 
@@ -21,6 +19,7 @@ if (!valid) {
 JS
 
 npm run db:migrate
+npm run db:bootstrap
 if [ -f server.js ]; then
   exec env HOSTNAME=0.0.0.0 node server.js
 fi

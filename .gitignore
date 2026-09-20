@@ -10,3 +10,8 @@ playwright-report/
 *.log
 deploy/backups/
 deploy/compose.override.yaml
+compose.yaml
+compose.previous.yaml
+.proxy-network
+.deploy-*/
+backups/

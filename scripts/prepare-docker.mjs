@@ -24,7 +24,7 @@ for (const name of binaries) await cp(path.join(engines, name), path.join(destin
 
 // Bundle the TypeScript initializer so production does not need tsx or a compiler.
 await build({
-  entryPoints: ["prisma/seed.ts"], outfile: path.join(destination, "prisma/seed.cjs"),
+  entryPoints: ["prisma/seed.ts", "prisma/bootstrap.ts"], outdir: path.join(destination, "prisma"), outExtension: { ".js": ".cjs" },
   bundle: true, platform: "node", target: "node22", format: "cjs", minify: true,
   external: ["@prisma/client"],
 });
@@ -34,6 +34,7 @@ await writeFile(path.join(destination, "package.json"), JSON.stringify({
   scripts: {
     start: "node server.js",
     "db:migrate": "node node_modules/prisma/build/index.js migrate deploy",
+    "db:bootstrap": "node prisma/bootstrap.cjs",
     "db:seed": "node prisma/seed.cjs",
   },
 }, null, 2) + "\n");
