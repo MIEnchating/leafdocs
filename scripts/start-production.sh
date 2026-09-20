@@ -21,4 +21,7 @@ if (!valid) {
 JS
 
 npm run db:migrate
+if [ -f server.js ]; then
+  exec env HOSTNAME=0.0.0.0 node server.js
+fi
 exec ./node_modules/.bin/next start --hostname 0.0.0.0 --port "${PORT:-3210}"

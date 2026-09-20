@@ -8,18 +8,18 @@ COPY package.json package-lock.json ./
 RUN npm ci --include=dev
 COPY . .
 # A clean checkout may have no public directory. The build needs no live database.
-RUN mkdir -p public && DATABASE_URL=postgresql://build:build@127.0.0.1:1/build npm run build
+RUN mkdir -p public && DOCKER_BUILD=1 DATABASE_URL=postgresql://build:build@127.0.0.1:1/build npm run build \
+    && node scripts/prepare-docker.mjs
 
 FROM base AS runner
 ENV NODE_ENV=production PORT=3210 NEXT_TELEMETRY_DISABLED=1
-# Keep Prisma CLI and tsx available for database migrations and administrator setup.
-COPY --from=builder --chown=node:node /app/node_modules ./node_modules
-COPY --from=builder --chown=node:node /app/.next ./.next
+# Copy the traced server and migration tools, without build caches or development dependencies.
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 COPY --from=builder --chown=node:node /app/public ./public
-COPY --from=builder --chown=node:node /app/prisma ./prisma
-COPY --from=builder --chown=node:node /app/src ./src
-COPY --from=builder --chown=node:node /app/scripts ./scripts
-COPY --from=builder --chown=node:node /app/package.json /app/package-lock.json /app/next.config.ts /app/tsconfig.json ./
+COPY --from=builder --chown=node:node /app/prisma/schema.prisma ./prisma/schema.prisma
+COPY --from=builder --chown=node:node /app/prisma/migrations ./prisma/migrations
+COPY --from=builder --chown=node:node /app/scripts/start-production.sh ./scripts/start-production.sh
 RUN mkdir -p .data/uploads && chown -R node:node .data
 USER node
 EXPOSE 3210
