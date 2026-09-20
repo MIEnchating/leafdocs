@@ -1,7 +1,7 @@
 # Render Blueprint: web service + PostgreSQL + persistent image storage.
 services:
   - type: web
-    name: new-api-docs
+    name: leafdocs
     runtime: node
     plan: starter
     region: singapore
@@ -19,7 +19,7 @@ services:
         value: production
       - key: DATABASE_URL
         fromDatabase:
-          name: new-api-docs-db
+          name: leafdocs-db
           property: connectionString
       - key: ADMIN_EMAIL
         sync: false
@@ -27,9 +27,9 @@ services:
         sync: false
 
 databases:
-  - name: new-api-docs-db
+  - name: leafdocs-db
     plan: basic-256mb
     region: singapore
-    databaseName: new_api_docs
+    databaseName: leafdocs
     user: docs
     ipAllowList: []
