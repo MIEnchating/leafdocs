@@ -1,0 +1,51 @@
+name: leafdocs
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: leafdocs
+      POSTGRES_USER: leafdocs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请设置数据库密码}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leafdocs -d leafdocs"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [default]
+  app:
+    image: ${LEAFDOCS_IMAGE:-mienvirtuoso/leafdocs:latest}
+    restart: unless-stopped
+    init: true
+    environment:
+      DATABASE_URL: postgresql://leafdocs:${POSTGRES_PASSWORD:?请设置数据库密码}@db:5432/leafdocs?schema=public
+      APP_URL: https://${DOMAIN:?请设置域名}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    volumes:
+      - uploads:/app/.data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3210/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+    networks:
+      default: {}
+      proxy:
+        aliases: [leafdocs-backend]
+volumes:
+  database:
+    name: leafdocs_database
+  uploads:
+    name: leafdocs_uploads
+networks:
+  default: {}
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-newapi_default}

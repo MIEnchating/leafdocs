@@ -14,20 +14,36 @@
 
 ## Docker 部署（无需克隆项目）
 
-服务器只需 Docker Engine、Compose 插件、Bash、curl 和 openssl，不需要 Node.js、Git 或项目源码。使用已有 Nginx 提供 HTTPS；安装脚本只启动应用与 PostgreSQL，不占用 80/443。
+脚本只下载部署配置，不需要克隆项目。准备文件需要 Bash 和 curl；启动服务需要 Docker Engine 和 Compose 插件。使用现有 Nginx 容器提供 HTTPS，应用与 PostgreSQL 不占用宿主机端口。
 
-下载并运行部署脚本：
+**1. 下载并执行脚本**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MIEnchating/leafdocs/main/deploy.sh -o leafdocs-deploy.sh
-bash leafdocs-deploy.sh --network newapi_default
+bash leafdocs-deploy.sh
 ```
 
-`newapi_default` 替换成 **Nginx 容器实际连接的已有网络**；脚本不会创建这个外部网络。Nginx 运行在宿主机时，使用 `--network -`。首次安装会询问域名、管理员邮箱和密码（至少 12 字节），数据库密码自动生成。
+默认使用顶层目录 `~/leafdocs`，可用 `--dir /你的目录` 指定目录。目录不存在时创建，存在时更新 `docker-compose.yml`；内容有变化时先将旧文件备份为 `docker-compose.yml.backup.*`。脚本下载 `deploy/.env.example` 并保存为 `.env`，已有 `.env` 始终保留。下载失败不会覆盖已有配置。
 
-默认部署目录是 `~/leafdocs`，仅保存脚本、Compose 配置、`.env` 和网络选择记录；可用 `--dir /你的目录` 指定其他目录。脚本不下载项目源码，也不自动安装或修改系统服务。
+**2. 手动编辑配置**
 
-**首次启动自动创建管理员，无需执行 `db:seed`。** 首次凭据缺失或格式无效时，应用会明确报错而不会以无法登录的状态启动。已有管理员时会保留原账号密码，修改 `.env` 不会重置密码或新增账号。默认文档库为空，可在后台新建或导入内容。
+```bash
+cd ~/leafdocs
+nano .env
+```
+
+填写 `DOMAIN`（仅域名）、`POSTGRES_PASSWORD`、`ADMIN_EMAIL` 和 `ADMIN_PASSWORD`（12 至 1024 字节）。数据库密码建议使用随机的长字母数字串，因为它也用于数据库连接 URL；已有数据库必须保留原密码。管理员密码用单引号包裹，以保留 `$`、`#` 等字符。
+
+将 `PROXY_NETWORK` 设置为 **Nginx 容器实际连接的已有网络**，默认 `newapi_default`。该外部网络必须已存在；数据库只连接 LeafDocs 自己的网络，应用同时连接两个网络。
+
+**3. 手动拉取镜像并启动**
+
+```bash
+docker compose -f docker-compose.yml pull
+docker compose -f docker-compose.yml up -d --wait
+```
+
+**首次启动应用自动创建管理员，无需执行 `db:seed`。** 首次凭据缺失或格式无效时，应用会明确报错。已有用户时保留原账号密码，修改 `.env` 不会重置密码或新增账号。默认文档库为空，可在后台新建或导入内容。
 
 ### 配置现有 Nginx
 
@@ -46,45 +62,42 @@ location / {
 }
 ```
 
-Nginx 在宿主机运行时，目标改为 `http://127.0.0.1:3210`。本机 3210 端口已占用时，在 `.env` 添加 `LEAFDOCS_PORT=3211` 并重新运行脚本，宿主机反代目标也改为 3211；容器网络中的目标仍为 `leafdocs-backend:3210`。数据库只连接内部网络，不向主机发布端口。
-
 打开 `https://你的域名/admin`，使用首次配置的邮箱密码登录。生产登录依赖 HTTPS。
 
-### 已有部署迁移到脚本
+### 已有部署更新
 
-如果此前已经在 `~/leafdocs/deploy` 配置了 `.env`，直接指定这个目录和 Nginx 网络：
-
-```bash
-bash leafdocs-deploy.sh --dir "$HOME/leafdocs/deploy" --network newapi_default
-```
-
-脚本保留已有 `.env`，复用原来的 `leafdocs_database` 和 `leafdocs_uploads` 数据卷；变更前的 Compose 文件保存为 `compose.previous.yaml`。旧的 `compose.override.yaml` 不会被删除，但脚本明确指定 Compose 文件，不会合并旧 override。不要删除 `.env` 或数据卷，也无需重新导入文档。
-
-若旧的 LeafDocs Caddy 容器仍在运行，可执行 `docker stop leafdocs-caddy-1` 停止它；无需停止其他服务的 Nginx，也不需要删除数据库或图片卷。
-
-### 更新、日志与备份
-
-后续直接运行部署目录中的脚本，无需 Git：
+如果原来在 `~/leafdocs/deploy` 部署，始终指定原目录：
 
 ```bash
-bash ~/leafdocs/deploy.sh update
-bash ~/leafdocs/deploy.sh status
-bash ~/leafdocs/deploy.sh logs
+bash leafdocs-deploy.sh --dir "$HOME/leafdocs/deploy"
+cd ~/leafdocs/deploy
+nano .env
+docker compose -f docker-compose.yml pull
+docker compose -f docker-compose.yml up -d --wait
 ```
 
-使用自定义目录或从旧版迁移时，每次带上同一个 `--dir`，例如：
+脚本更新 Compose、保留 `.env`；新模板默认使用 `newapi_default`，请核对或补充 `PROXY_NETWORK`。若自定义过 Compose，请与备份对照后再启动。数据继续保存在原来的 `leafdocs_database` 和 `leafdocs_uploads` 卷中。
+
+旧的 `compose.yaml`、`compose.override.yaml` 会保留。务必使用上面的 `-f docker-compose.yml` 命令，避免加载旧文件。若旧的 LeafDocs Caddy 容器仍在运行，可执行 `docker stop leafdocs-caddy-1` 停止它。
+
+### 镜像更新、日志与备份
+
+仅更新镜像时，在实际部署目录执行，无需重新运行脚本：
 
 ```bash
-bash ~/leafdocs/deploy/deploy.sh update --dir "$HOME/leafdocs/deploy"
+docker compose -f docker-compose.yml pull
+docker compose -f docker-compose.yml up -d --wait
+docker compose -f docker-compose.yml ps
+docker compose -f docker-compose.yml logs --tail=100 app db
 ```
 
-更新镜像保留账号、文档和图片。需要更新脚本本身时，重新下载并使用相同的 `--dir` 和网络参数运行。升级前备份数据；在实际部署目录执行：
+需要更新部署配置时，重新下载脚本，使用同一个 `--dir` 运行。升级前在实际部署目录备份数据：
 
 ```bash
 mkdir -p backups
 chmod 700 backups
-docker compose -p leafdocs -f compose.yaml exec -T db pg_dump -U leafdocs -d leafdocs -Fc > backups/database.dump
-docker compose -p leafdocs -f compose.yaml exec -T app tar -czf - -C /app/.data uploads > backups/uploads.tar.gz
+docker compose -f docker-compose.yml exec -T db pg_dump -U leafdocs -d leafdocs -Fc > backups/database.dump
+docker compose -f docker-compose.yml exec -T app tar -czf - -C /app/.data uploads > backups/uploads.tar.gz
 ```
 
 把备份另存到服务器以外的位置。不要执行 `docker compose down -v`，它会删除数据卷。
@@ -97,7 +110,7 @@ GitHub Actions 工作流位于 `.github/workflows/dockerhub.yml`，只推送到 
 
 推送到 `main` 自动发布 `latest` 和 `sha-完整提交号` 标签；推送 `v1.2.3` 这样的版本标签会发布 `1.2.3` 和提交号标签。也可在 Actions 页面手动运行 **Publish Docker Hub image**。镜像包含 `linux/amd64` 和 `linux/arm64` 两种架构。
 
-如需固定版本，在部署目录的 `.env` 中设置 `LEAFDOCS_IMAGE=mienvirtuoso/leafdocs:1.2.3`，再运行部署脚本的 `update` 命令。
+如需固定版本，在部署目录的 `.env` 中设置 `LEAFDOCS_IMAGE=mienvirtuoso/leafdocs:1.2.3`，再手动执行上述拉取镜像和启动命令。
 
 ## 本机开发
 

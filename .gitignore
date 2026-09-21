@@ -15,3 +15,4 @@ compose.previous.yaml
 .proxy-network
 .deploy-*/
 backups/
+docker-compose.yml.backup.*
