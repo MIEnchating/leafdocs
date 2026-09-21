@@ -36,6 +36,7 @@ sys.exit(99)
         **os.environ,
         "PATH": str(bin_dir) + ":" + os.environ["PATH"],
         "DEPLOY_TEST_ROOT": str(ROOT),
+        "HOME": str(temp / "test home"),
         "DEPLOY_TEST_DOCKER": str(temp / "docker-called"),
     }
 
@@ -45,8 +46,8 @@ sys.exit(99)
             env={**env, **overrides}, capture_output=True, text=True, timeout=10,
         )
 
-    deploy = temp / "new parent" / "leafdocs"
-    result = run("--dir", str(deploy))
+    deploy = Path(env["HOME"]) / "leafdocs"
+    result = run()
     assert result.returncode == 0, result.stderr
     assert "创建部署目录" in result.stdout
     assert set(p.name for p in deploy.iterdir()) == {"docker-compose.yml", ".env"}
@@ -65,7 +66,7 @@ sys.exit(99)
     (deploy / "docker-compose.yml").write_text("old custom configuration\n")
     (deploy / "compose.yaml").write_text("legacy compose\n")
     (deploy / "compose.override.yaml").write_text("legacy override\n")
-    result = run("--dir", str(deploy))
+    result = run()
     assert result.returncode == 0, result.stderr
     assert "更新部署目录" in result.stdout
     assert (deploy / ".env").read_text() == original_env
@@ -74,20 +75,21 @@ sys.exit(99)
     assert (deploy / "docker-compose.yml").read_bytes() == (ROOT / "deploy/docker-compose.yml").read_bytes()
     assert (deploy / "compose.yaml").read_text() == "legacy compose\n"
     assert (deploy / "compose.override.yaml").read_text() == "legacy override\n"
-    assert run("--dir", str(deploy)).returncode == 0
+    assert run().returncode == 0
     assert list(deploy.glob("docker-compose.yml.backup.*")) == backups
 
     for filename in ["docker-compose.yml", ".env.example"]:
         before = {p.name: p.read_bytes() for p in deploy.iterdir()}
-        result = run("--dir", str(deploy), FAIL_DOWNLOAD=filename)
+        result = run(FAIL_DOWNLOAD=filename)
         assert result.returncode != 0
         assert {p.name: p.read_bytes() for p in deploy.iterdir()} == before
         fresh = temp / ("failed-" + filename)
-        assert run("--dir", str(fresh), FAIL_DOWNLOAD=filename).returncode != 0
-        assert not list(fresh.iterdir())
+        assert run(HOME=str(fresh), FAIL_DOWNLOAD=filename).returncode != 0
+        assert not list((fresh / "leafdocs").iterdir())
 
     assert run("--help").returncode == 0
-    assert run("--dir").returncode != 0
+    assert run("--dir", str(temp / "custom")).returncode != 0
+    assert not (temp / "custom").exists()
     assert run("update").returncode != 0
     assert not (temp / "docker-called").exists(), "Script must never invoke Docker"
     print("PASS: create directory, update with backup, preserve .env, manual commands, failed downloads, no Docker calls")

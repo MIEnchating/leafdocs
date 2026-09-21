@@ -6,18 +6,15 @@ install_dir="${HOME}/leafdocs"
 base_url="https://raw.githubusercontent.com/MIEnchating/leafdocs/main/deploy"
 usage() {
   cat <<'HELP'
-用法：bash leafdocs-deploy.sh [--dir DIRECTORY]
+用法：bash leafdocs-deploy.sh [--help]
 
-默认目录：~/leafdocs。目录不存在时创建，存在时更新 docker-compose.yml。
+固定目录：$HOME/leafdocs。目录不存在时创建，存在时更新 docker-compose.yml。
 下载环境变量示例并保存为 .env；已有 .env 保持不变。
 脚本只准备配置文件，配置、拉取镜像和启动由你手动执行。
 HELP
 }
 while (($#)); do
   case "$1" in
-    --dir)
-      if (($# < 2)) || [[ -z "$2" || "$2" == -* ]]; then usage >&2; exit 1; fi
-      install_dir="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) printf '未知参数：%s\n' "$1" >&2; usage >&2; exit 1 ;;
   esac

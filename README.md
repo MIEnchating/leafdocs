@@ -23,7 +23,7 @@ curl -fsSL https://raw.githubusercontent.com/MIEnchating/leafdocs/main/deploy.sh
 bash leafdocs-deploy.sh
 ```
 
-默认使用顶层目录 `~/leafdocs`，可用 `--dir /你的目录` 指定目录。目录不存在时创建，存在时更新 `docker-compose.yml`；内容有变化时先将旧文件备份为 `docker-compose.yml.backup.*`。脚本下载 `deploy/.env.example` 并保存为 `.env`，已有 `.env` 始终保留。下载失败不会覆盖已有配置。
+固定使用当前用户的 `$HOME/leafdocs`（即 `~/leafdocs`），无需传目录参数。目录不存在时创建，存在时更新 `docker-compose.yml`；内容有变化时先将旧文件备份为 `docker-compose.yml.backup.*`。脚本下载 `deploy/.env.example` 并保存为 `.env`，已有 `.env` 始终保留。下载失败不会覆盖已有配置。
 
 **2. 手动编辑配置**
 
@@ -66,11 +66,13 @@ location / {
 
 ### 已有部署更新
 
-如果原来在 `~/leafdocs/deploy` 部署，始终指定原目录：
+如果原来在 `~/leafdocs/deploy` 部署，先将旧 `.env` 复制到固定目录，保留原数据库密码；目标已有 `.env` 时不会覆盖：
 
 ```bash
-bash leafdocs-deploy.sh --dir "$HOME/leafdocs/deploy"
-cd ~/leafdocs/deploy
+mkdir -p "$HOME/leafdocs"
+cp -n "$HOME/leafdocs/deploy/.env" "$HOME/leafdocs/.env"
+bash leafdocs-deploy.sh
+cd ~/leafdocs
 nano .env
 docker compose -f docker-compose.yml pull
 docker compose -f docker-compose.yml up -d --wait
@@ -91,7 +93,7 @@ docker compose -f docker-compose.yml ps
 docker compose -f docker-compose.yml logs --tail=100 app db
 ```
 
-需要更新部署配置时，重新下载脚本，使用同一个 `--dir` 运行。升级前在实际部署目录备份数据：
+需要更新部署配置时，重新下载并运行脚本即可，目录固定为 `~/leafdocs`。升级前在实际部署目录备份数据：
 
 ```bash
 mkdir -p backups
