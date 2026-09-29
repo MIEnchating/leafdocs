@@ -190,8 +190,8 @@ kbd { font: 10px/1.5 var(--font-mono); padding: 3px 6px; background: var(--surfa
 .document-content p { margin: 14px 0; min-height: 6px; white-space: pre-wrap; }
 .document-content strong { color: var(--foreground); font-weight: 600; }
 .document-content a { color: var(--link); text-decoration: underline; text-underline-offset: 4px; }
-.document-content ul,.document-content ol { padding-left: 24px; margin: 18px 0; list-style: disc; }.document-content ol { list-style: decimal; }
-.document-content li { padding-left: 4px; margin: 6px 0; }.document-content li::marker { color: #9aabb5; }
+.document-content ul,.document-content ol { padding-left: 24px; margin: 18px 0; color: var(--foreground); list-style: disc; }.document-content ol { list-style: decimal; }
+.document-content li { padding-left: 4px; margin: 6px 0; }.document-content li::marker { color: var(--foreground); }
 .document-content code { font: .85em var(--font-mono); color: var(--link); background: var(--accent-light); padding: 3px 6px; border-radius: 6px; box-decoration-break: clone; }
 .document-content pre { margin: 0; padding: 18px; overflow: auto; white-space: pre; font: 12px/1.85 var(--font-mono); }
 .document-content pre code { padding: 0; background: transparent; font-size: inherit; }
