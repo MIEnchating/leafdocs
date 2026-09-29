@@ -1,8 +1,6 @@
-"use client";
-
 import type { ReactNode } from "react";
-import { useState } from "react";
 import { CodeBlock } from "./code-block";
+import { DocumentImage } from "./document-image";
 
 type Inline = { type?: string; text?: string; href?: string; content?: Inline[]; styles?: Record<string, unknown> };
 type Block = { id?: string; type?: string; props?: Record<string, unknown>; content?: Inline[] | { rows?: { cells: unknown[] }[] }; children?: Block[] };
@@ -42,12 +40,6 @@ function InlineContent({ content }: { content: unknown }) {
     if (part.styles?.strike) node = <s>{node}</s>;
     return <span key={index}>{node}</span>;
   });
-}
-
-function DocumentImage({ url, alt }: { url: string; alt: string }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return <span className="document-image-error" role="img" aria-label="图片加载失败">图片加载失败</span>;
-  return <img src={url} alt={alt} loading="lazy" onError={() => setFailed(true)} />;
 }
 
 function Blocks({ blocks, path = "block" }: { blocks: Block[]; path?: string }) {
