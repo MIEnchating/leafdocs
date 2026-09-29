@@ -1555,6 +1555,11 @@
 
 .admin-workspace .bn-container, .admin-preview-modal .bn-container { --bn-font-family:var(--font-sans); --bn-colors-editor-background:transparent; --bn-colors-editor-text:var(--foreground); font-family:var(--font-sans); }
 
+/* Keep an unreachable external image block visible so it can be selected and replaced. */
+.admin-block-editor-view [data-content-type="image"][data-image-error="true"] { min-height:96px; border:1px dashed var(--border); border-radius:10px; background:var(--accent-light); }
+.admin-block-editor-view [data-content-type="image"][data-image-error="true"]::after { content:"图片加载失败，请删除或重新上传"; display:flex; align-items:center; justify-content:center; min-height:96px; color:var(--muted); font-size:12px; }
+.admin-block-editor-view [data-content-type="image"][data-image-error="true"] img { display:none; }
+
 .admin-publication-badge{background:#fbf3db;color:#956400;border-color:var(--border);border-radius:999px}
 
 .admin-publication-badge.is-published{background:#edf3ec;color:#346538;border-color:var(--border)}

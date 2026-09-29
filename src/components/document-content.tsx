@@ -1,4 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { CodeBlock } from "./code-block";
 
 type Inline = { type?: string; text?: string; href?: string; content?: Inline[]; styles?: Record<string, unknown> };
@@ -41,6 +44,12 @@ function InlineContent({ content }: { content: unknown }) {
   });
 }
 
+function DocumentImage({ url, alt }: { url: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <span className="document-image-error" role="img" aria-label="图片加载失败">图片加载失败</span>;
+  return <img src={url} alt={alt} loading="lazy" onError={() => setFailed(true)} />;
+}
+
 function Blocks({ blocks, path = "block" }: { blocks: Block[]; path?: string }) {
   const nodes: ReactNode[] = [];
   for (let i = 0; i < blocks.length; i++) {
@@ -72,7 +81,7 @@ function Blocks({ blocks, path = "block" }: { blocks: Block[]; path?: string }) 
       case "codeBlock": node = <CodeBlock code={textFromInline(block.content)} language={String(props.language || "code")} />; break;
       case "quote": node = <blockquote>{body}</blockquote>; break;
       case "checkListItem": node = <div className="read-check"><input type="checkbox" checked={Boolean(props.checked)} readOnly aria-label={textFromInline(block.content)} />{body}</div>; break;
-      case "image": node = safeUrl(props.url) ? <figure><img src={safeUrl(props.url)} alt={String(props.caption || props.name || "文档图片")} loading="lazy" />{props.caption ? <figcaption>{String(props.caption)}</figcaption> : null}</figure> : null; break;
+      case "image": { const url = safeUrl(props.url); node = url ? <figure><DocumentImage url={url} alt={String(props.caption || props.name || "文档图片")} />{props.caption ? <figcaption>{String(props.caption)}</figcaption> : null}</figure> : null; break; }
       case "table": {
         const rows = !Array.isArray(block.content) ? block.content?.rows : [];
         node = <div className="table-scroll"><table><tbody>{rows?.map((row, r) => <tr key={r}>{row.cells.map((cell, c) => <td key={c}><InlineContent content={Array.isArray(cell) ? cell : (cell as { content?: unknown })?.content} /></td>)}</tr>)}</tbody></table></div>;

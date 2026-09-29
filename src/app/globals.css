@@ -197,6 +197,7 @@ kbd { font: 10px/1.5 var(--font-mono); padding: 3px 6px; background: var(--surfa
 .document-content pre code { padding: 0; background: transparent; font-size: inherit; }
 .document-content blockquote { margin: 24px 0; padding: 18px 24px; border: 0; border-radius: 16px; background: var(--accent-light); color: var(--link); font-size: 14px; }
 .document-content img { max-width: 100%; height: auto; border-radius: 18px; }
+.document-image-error { display:flex; align-items:center; justify-content:center; min-height:96px; padding:24px; border:1px dashed var(--border); border-radius:18px; background:var(--accent-light); color:var(--muted); font-size:12px; }
 .document-content figure { margin: 24px 0; }.document-content figcaption { font-size: 11px; text-align: center; margin-top: 8px; color: var(--muted); }
 .document-content table { width: 100%; border-collapse: collapse; font-size: 13px; }.document-content td { padding: 12px 14px; min-width: 100px; border-bottom: 1px solid var(--border); }.document-content tr:first-child { background: var(--accent-light); font-weight: 500; }
 .table-scroll { overflow: auto; margin: 24px 0; border-radius: 14px; }.read-check { display: flex; align-items: baseline; gap: 10px; }.read-check input { accent-color: var(--accent); }

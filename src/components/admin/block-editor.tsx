@@ -7,7 +7,7 @@ import type { PartialBlock } from "@blocknote/core";
 import "@blocknote/mantine/style.css";
 import { useTheme } from "@/components/theme-provider";
 import { isDarkTheme } from "@/lib/themes";
-import { memo, useCallback } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
 
 type Props = {
   content: unknown[];
@@ -18,6 +18,7 @@ type Props = {
 
 function BlockEditor({ content, onChange, onError, editable = true }: Props) {
   const { siteTheme } = useTheme();
+  const viewRef = useRef<HTMLDivElement>(null);
   const editor = useCreateBlockNote({
     dictionary: zh,
     initialContent: content.length ? (content as PartialBlock[]) : undefined,
@@ -38,7 +39,23 @@ function BlockEditor({ content, onChange, onError, editable = true }: Props) {
   });
 
   const handleChange = useCallback(() => { if (editable) onChange?.(editor.document); }, [editable, onChange, editor]);
-  return <BlockNoteView editor={editor} theme={isDarkTheme(siteTheme) ? "dark" : "light"} editable={editable} onChange={handleChange} />;
+  useEffect(() => {
+    const root = viewRef.current;
+    if (!root) return;
+    const markFailedImage = (image: HTMLImageElement) => {
+      image.closest<HTMLElement>("[data-content-type=\"image\"]")?.setAttribute("data-image-error", "true");
+    };
+    const images = [...root.querySelectorAll<HTMLImageElement>("img")];
+    images.forEach(image => {
+      if (image.complete && image.naturalWidth === 0) markFailedImage(image);
+    });
+    const handleError = (event: Event) => {
+      if (event.target instanceof HTMLImageElement) markFailedImage(event.target);
+    };
+    root.addEventListener("error", handleError, true);
+    return () => root.removeEventListener("error", handleError, true);
+  }, [content, editor]);
+  return <div ref={viewRef} className="admin-block-editor-view"><BlockNoteView editor={editor} theme={isDarkTheme(siteTheme) ? "dark" : "light"} editable={editable} onChange={handleChange} /></div>;
 }
 
 export default memo(BlockEditor);
