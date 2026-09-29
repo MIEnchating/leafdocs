@@ -1,6 +1,6 @@
 "use client";
 
-import { useCreateBlockNote } from "@blocknote/react";
+import { FormattingToolbar, FormattingToolbarController, getFormattingToolbarItems, useCreateBlockNote, type FormattingToolbarProps } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { zh } from "@blocknote/core/locales";
 import type { PartialBlock } from "@blocknote/core";
@@ -15,6 +15,11 @@ type Props = {
   onError?: (message: string) => void;
   editable?: boolean;
 };
+
+function EditorFormattingToolbar(props: FormattingToolbarProps) {
+  const items = getFormattingToolbarItems(props.blockTypeSelectItems).filter(item => item.key !== "filePreviewButton");
+  return <FormattingToolbar {...props}>{items}</FormattingToolbar>;
+}
 
 function BlockEditor({ content, onChange, onError, editable = true }: Props) {
   const { siteTheme } = useTheme();
@@ -55,7 +60,7 @@ function BlockEditor({ content, onChange, onError, editable = true }: Props) {
     root.addEventListener("error", handleError, true);
     return () => root.removeEventListener("error", handleError, true);
   }, [content, editor]);
-  return <div ref={viewRef} className="admin-block-editor-view"><BlockNoteView editor={editor} theme={isDarkTheme(siteTheme) ? "dark" : "light"} editable={editable} onChange={handleChange} /></div>;
+  return <div ref={viewRef} className="admin-block-editor-view"><BlockNoteView editor={editor} theme={isDarkTheme(siteTheme) ? "dark" : "light"} editable={editable} onChange={handleChange} formattingToolbar={false}><FormattingToolbarController formattingToolbar={EditorFormattingToolbar} /></BlockNoteView></div>;
 }
 
 export default memo(BlockEditor);
